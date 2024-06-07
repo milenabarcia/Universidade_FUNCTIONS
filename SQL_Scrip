@@ -1,0 +1,384 @@
+CREATE TABLE Areas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE Cursos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL,
+    area_id INT,
+    FOREIGN KEY (area_id) REFERENCES Areas(id)
+);
+
+CREATE TABLE Alunos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL,
+    sobrenome VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE
+);
+
+CREATE TABLE Matriculas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    aluno_id INT,
+    curso_id INT,
+    FOREIGN KEY (aluno_id) REFERENCES Alunos(id),
+    FOREIGN KEY (curso_id) REFERENCES Cursos(id),
+    UNIQUE(aluno_id, curso_id)
+);
+
+-- Procedure para inserir um novo curso
+DELIMITER //
+
+CREATE PROCEDURE InserirCurso (
+    IN nomeCurso VARCHAR(255),
+    IN nomeArea VARCHAR(255)
+)
+BEGIN
+    DECLARE areaId INT;
+    
+    -- Verificar se a área já existe
+    SELECT id INTO areaId
+    FROM Areas
+    WHERE nome = nomeArea;
+    
+    -- Se não existir, inserir a nova área
+    IF areaId IS NULL THEN
+        INSERT INTO Areas (nome)
+        VALUES (nomeArea);
+        
+        SET areaId = LAST_INSERT_ID();
+    END IF;
+    
+    -- Inserir o curso com a área correspondente
+    INSERT INTO Cursos (nome, area_id)
+    VALUES (nomeCurso, areaId);
+END //
+
+DELIMITER ;
+ -- resolvendo o erro 1418 --
+ 
+SET GLOBAL log_bin_trust_function_creators = 1;
+
+-- Função para buscar o id de um curso pelo nome
+DELIMITER //
+
+CREATE FUNCTION BuscarCursoId (
+    nomeCurso VARCHAR(255),
+    nomeArea VARCHAR(255)
+) RETURNS INT
+BEGIN
+    DECLARE cursoId INT;
+    
+    SELECT Cursos.id INTO cursoId
+    FROM Cursos
+    JOIN Areas ON Cursos.area_id = Areas.id
+    WHERE Cursos.nome = nomeCurso AND Areas.nome = nomeArea;
+    
+    RETURN cursoId;
+END //
+
+DELIMITER ;
+
+-- Procedure para matricular um aluno em um curso
+DELIMITER //
+
+CREATE PROCEDURE MatricularAluno (
+    IN nomeAluno VARCHAR(255),
+    IN sobrenomeAluno VARCHAR(255),
+    IN nomeCurso VARCHAR(255),
+    IN nomeArea VARCHAR(255)
+)
+BEGIN
+    DECLARE alunoId INT;
+    DECLARE cursoId INT;
+    DECLARE emailAluno VARCHAR(255);
+    
+    -- Gerar o email do aluno
+    SET emailAluno = CONCAT(nomeAluno, '.', sobrenomeAluno, '@dominio.com');
+    
+    -- Inserir o aluno, se ainda não estiver inserido
+    INSERT INTO Alunos (nome, sobrenome, email)
+    VALUES (nomeAluno, sobrenomeAluno, emailAluno)
+    ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id);
+    
+    SET alunoId = LAST_INSERT_ID();
+    
+    -- Buscar o id do curso
+    SET cursoId = BuscarCursoId(nomeCurso, nomeArea);
+    
+    -- Verificar se o aluno já está matriculado no curso
+    IF NOT EXISTS (
+        SELECT 1 FROM Matriculas WHERE aluno_id = alunoId AND curso_id = cursoId
+    ) THEN
+        -- Inserir a matrícula
+        INSERT INTO Matriculas (aluno_id, curso_id)
+        VALUES (alunoId, cursoId);
+    END IF;
+END //
+
+DELIMITER ;
+-- Inserir 25 tipos de cursos 
+CALL InserirCurso('Defesa Contra as Artes das Trevas', 'Magia');
+CALL InserirCurso('Feitiços', 'Magia');
+CALL InserirCurso('Transfiguração', 'Magia');
+CALL InserirCurso('Pociologia', 'Magia');
+CALL InserirCurso('Herbologia', 'Magia');
+CALL InserirCurso('Astronomia', 'Magia');
+CALL InserirCurso('História da Magia', 'Magia');
+CALL InserirCurso('Vôo', 'Magia');
+CALL InserirCurso('Trato das Criaturas Mágicas', 'Magia');
+CALL InserirCurso('Adivinhação', 'Magia');
+CALL InserirCurso('Runas Antigas', 'Magia');
+CALL InserirCurso('Estudo dos Trouxas', 'Magia');
+CALL InserirCurso('Aritmancia', 'Magia');
+CALL InserirCurso('Estudo das Artes das Trevas', 'Magia');
+CALL InserirCurso('Alquimia', 'Magia');
+CALL InserirCurso('Magia Avançada', 'Magia');
+CALL InserirCurso('Legilimência e Oclumência', 'Magia');
+CALL InserirCurso('Magia Elemental', 'Magia');
+CALL InserirCurso('Metamorfomagia', 'Magia');
+CALL InserirCurso('Magia Antiga', 'Magia');
+CALL InserirCurso('História de Hogwarts', 'Magia');
+CALL InserirCurso('Runas', 'Magia');
+CALL InserirCurso('Magizoologia', 'Magia');
+CALL InserirCurso('Estudo das Poções Avançadas', 'Magia');
+CALL InserirCurso('História dos Feiticeiros', 'Magia');
+
+-- Inserir 200 registros de alunos
+DELIMITER //
+
+CREATE PROCEDURE InserirAlunos()
+BEGIN
+    DECLARE i INT DEFAULT 1;
+    DECLARE nomeAluno VARCHAR(255);
+    DECLARE sobrenomeAluno VARCHAR(255);
+    
+    WHILE i <= 200 DO
+        SET nomeAluno = CONCAT('Aluno', i);
+        SET sobrenomeAluno = CONCAT('Sobrenome', i);
+        
+        INSERT INTO Alunos (nome, sobrenome, email)
+        VALUES (nomeAluno, sobrenomeAluno, CONCAT(nomeAluno, '.', sobrenomeAluno, '@dominio.com'));
+        
+        SET i = i + 1;
+    END WHILE;
+END //
+
+DELIMITER ;
+
+CALL InserirAlunos();
+
+CALL MatricularAluno('Harry', 'Potter', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Hermione', 'Granger', 'Feitiços', 'Magia');
+CALL MatricularAluno('Ron', 'Weasley', 'Transfiguração', 'Magia');
+CALL MatricularAluno('Draco', 'Malfoy', 'Pociologia', 'Magia');
+CALL MatricularAluno('Luna', 'Lovegood', 'Herbologia', 'Magia');
+CALL MatricularAluno('Neville', 'Longbottom', 'Herbologia', 'Magia');
+CALL MatricularAluno('Ginny', 'Weasley', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Fred', 'Weasley', 'Feitiços', 'Magia');
+CALL MatricularAluno('George', 'Weasley', 'Feitiços', 'Magia');
+CALL MatricularAluno('Albus', 'Dumbledore', 'Transfiguração', 'Magia');
+CALL MatricularAluno('Severus', 'Snape', 'Pociologia', 'Magia');
+CALL MatricularAluno('Rubeus', 'Hagrid', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Sirius', 'Black', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Remus', 'Lupin', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Cho', 'Chang', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Cedric', 'Diggory', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Oliver', 'Wood', 'Vôo', 'Magia');
+CALL MatricularAluno('Dean', 'Thomas', 'Estudo dos Trouxas', 'Magia');
+CALL MatricularAluno('Seamus', 'Finnigan', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Minerva', 'McGonagall', 'Transfiguração', 'Magia');
+CALL MatricularAluno('Arthur', 'Weasley', 'Estudo dos Trouxas', 'Magia');
+CALL MatricularAluno('Molly', 'Weasley', 'Herbologia', 'Magia');
+CALL MatricularAluno('Bellatrix', 'Lestrange', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Nymphadora', 'Tonks', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Lucius', 'Malfoy', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Peter', 'Pettigrew', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Frodo', 'Baggins', 'História da Magia', 'Magia');
+CALL MatricularAluno('Samwise', 'Gamgee', 'Herbologia', 'Magia');
+CALL MatricularAluno('Gandalf', 'The Grey', 'Magia Antiga', 'Magia');
+CALL MatricularAluno('Aragorn', 'Son of Arathorn', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Legolas', 'Greenleaf', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Gimli', 'Son of Glóin', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Boromir', 'Son of Denethor', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Gollum', '', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Galadriel', '', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Elrond', 'Half-Elven', 'Runas Antigas', 'Magia');
+CALL MatricularAluno('Merry', 'Brandybuck', 'História da Magia', 'Magia');
+CALL MatricularAluno('Pippin', 'Took', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Éowyn', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Faramir', '', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Arwen', 'Undómiel', 'Runas Antigas', 'Magia');
+CALL MatricularAluno('Percy', 'Jackson', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Annabeth', 'Chase', 'Runas Antigas', 'Magia');
+CALL MatricularAluno('Grover', 'Underwood', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Luke', 'Castellan', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Thalia', 'Grace', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Nico', 'di Angelo', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Clarisse', 'La Rue', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Tyson', '', 'Estudo dos Trouxas', 'Magia');
+CALL MatricularAluno('Jason', 'Grace', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Piper', 'McLean', 'Runas Antigas', 'Magia');
+CALL MatricularAluno('Leo', 'Valdez', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Rachel', 'Elizabeth Dare', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Hazel', 'Levesque', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Eragon', 'Shadeslayer', 'Magia Antiga', 'Magia');
+CALL MatricularAluno('Saphira', 'Bjartskular', 'Vôo', 'Magia');
+CALL MatricularAluno('Arya', 'Drottningu', 'Runas', 'Magia');
+CALL MatricularAluno('Brom', '', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Murtagh', 'Morzan', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Galbatorix', '', 'Magia Antiga', 'Magia');
+CALL MatricularAluno('Roran', 'Stronghammer', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Katrina', '', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Angela', 'The Herbalist', 'Herbologia', 'Magia');
+CALL MatricularAluno('Solembum', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Jon', 'Snow', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Daenerys', 'Targaryen', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Arya', 'Stark', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Tyrion', 'Lannister', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Bran', 'Stark', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Sansa', 'Stark', 'História da Magia', 'Magia');
+CALL MatricularAluno('Orik', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Nasuada', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Elva', '', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Garrow', '', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Jeod', '', 'Runas Antigas', 'Magia');
+CALL MatricularAluno('Aang', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Katara', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Sokka', '', 'História da Magia', 'Magia');
+CALL MatricularAluno('Toph', 'Beifong', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Zuko', '', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Iroh', '', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Azula', '', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Mai', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Ty Lee', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Suki', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Appa', '', 'Vôo', 'Magia');
+CALL MatricularAluno('Momo', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Hakoda', '', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Kya', '', 'Herbologia', 'Magia');
+CALL MatricularAluno('Bumi', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Kuei', '', 'História da Magia', 'Magia');
+CALL MatricularAluno('Haru', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Jet', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Longshot', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Smellerbee', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Geralt', 'of Rivia', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Yennefer', 'of Vengerberg', 'Pociologia', 'Magia');
+CALL MatricularAluno('Ciri', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Triss', 'Merigold', 'Herbologia', 'Magia');
+CALL MatricularAluno('Dandelion', '', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Peter', 'Pevensie', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Susan', 'Pevensie', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Edmund', 'Pevensie', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Lucy', 'Pevensie', 'Herbologia', 'Magia');
+CALL MatricularAluno('Aslan', '', 'Magia Antiga', 'Magia');
+CALL MatricularAluno('Caspian', 'X', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Luke', 'Skywalker', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Leia', 'Organa', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Han', 'Solo', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Darth', 'Vader', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Obi-Wan', 'Kenobi', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Yoda', '', 'Magia Antiga', 'Magia');
+CALL MatricularAluno('Rey', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Kylo', 'Ren', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Finn', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Poe', 'Dameron', 'Vôo', 'Magia');
+CALL MatricularAluno('Brienne', 'of Tarth', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Jorah', 'Mormont', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Sandor', 'Clegane', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Jaime', 'Lannister', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Cersei', 'Lannister', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Samwell', 'Tarly', 'História da Magia', 'Magia');
+CALL MatricularAluno('Gilly', '', 'Herbologia', 'Magia');
+CALL MatricularAluno('Bran', 'Stark', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Joffrey', 'Baratheon', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Stannis', 'Baratheon', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Vesemir', '', 'Magia Antiga', 'Magia');
+CALL MatricularAluno('Eskel', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Lambert', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Regis', '', 'Pociologia', 'Magia');
+CALL MatricularAluno('Emhyr', 'var Emreis', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Arthur', 'Pendragon', 'Magia Antiga', 'Magia');
+CALL MatricularAluno('Merlin', '', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Morgana', 'Le Fay', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Lancelot', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Guinevere', '', 'História da Magia', 'Magia');
+CALL MatricularAluno('Percival', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Galahad', '', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Tristan', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Isolde', '', 'Herbologia', 'Magia');
+CALL MatricularAluno('Arya', '', 'Runas Antigas', 'Magia');
+CALL MatricularAluno('Murtagh', '', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Galbatorix', '', 'Magia Antiga', 'Magia');
+CALL MatricularAluno('Roran', 'Stronghammer', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Katrina', '', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Angela', 'The Herbalist', 'Herbologia', 'Magia');
+CALL MatricularAluno('Violet', 'Baudelaire', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Klaus', 'Baudelaire', 'História da Magia', 'Magia');
+CALL MatricularAluno('Sunny', 'Baudelaire', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Olaf', 'Count', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Lemony', 'Snicket', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Isadora', 'Quagmire', 'Runas Antigas', 'Magia');
+CALL MatricularAluno('Duncan', 'Quagmire', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Quigley', 'Quagmire', 'Geografia Mágica', 'Magia');
+CALL MatricularAluno('Jerome', 'Squalor', 'Estudo dos Trouxas', 'Magia');
+CALL MatricularAluno('Esmé', 'Squalor', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Jacques', 'Snicket', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Kit', 'Snicket', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Montgomery', 'Montgomery', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Josephine', 'Anwhistle', 'Herbologia', 'Magia');
+CALL MatricularAluno('Gustav', 'Sebald', 'História da Magia', 'Magia');
+CALL MatricularAluno('Fiona', 'Widdershins', 'Pociologia', 'Magia');
+CALL MatricularAluno('Fernald', 'Widdershins', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Hector', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Phil', '', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Kit', 'Snicket', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Dewey', 'Denouement', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Frank', 'Denouement', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Ernest', 'Denouement', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Charles', '', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Sir', '', 'Estudo dos Trouxas', 'Magia');
+CALL MatricularAluno('Melisandre', '', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Gendry', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Bronn', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Tormund', 'Giantsbane', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Bran', 'Stark', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Podrick', 'Payne', 'História da Magia', 'Magia');
+CALL MatricularAluno('Trumpkin', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Reepicheep', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Tumnus', '', 'História da Magia', 'Magia');
+CALL MatricularAluno('Jadis', 'The White Witch', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Bree', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Lancelot', '', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Guinevere', '', 'História da Magia', 'Magia');
+CALL MatricularAluno('Percival', '', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Galahad', '', 'Aritmancia', 'Magia');
+CALL MatricularAluno('Tristan', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Isolde', '', 'Herbologia', 'Magia');
+CALL MatricularAluno('Yue', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Roku', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Kyoshi', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Sozin', '', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Korra', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Arthur', 'Dent', 'História da Magia', 'Magia');
+CALL MatricularAluno('Ford', 'Prefect', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Zaphod', 'Beeblebrox', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Trillian', '', 'Astronomia Mágica', 'Magia');
+CALL MatricularAluno('Marvin', 'The Paranoid Android', 'Pociologia', 'Magia');
+CALL MatricularAluno('Slartibartfast', '', 'Geografia Mágica', 'Magia');
+CALL MatricularAluno('Prostetnic', 'Vogon Jeltz', 'Estudo das Artes das Trevas', 'Magia');
+CALL MatricularAluno('Gag', 'Halfrunt', 'Herbologia', 'Magia');
+CALL MatricularAluno('Eddie', 'The Computer', 'Estudo dos Trouxas', 'Magia');
+CALL MatricularAluno('Wowbagger', 'The Infinitely Prolonged', 'Defesa Contra as Artes das Trevas', 'Magia');
+CALL MatricularAluno('Deep', 'Thought', 'Runas Antigas', 'Magia');
+CALL MatricularAluno('Frankie', 'Mouse', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Benjy', 'Mouse', 'Trato das Criaturas Mágicas', 'Magia');
+CALL MatricularAluno('Hactar', '', 'Magia Elemental', 'Magia');
+CALL MatricularAluno('Humma', 'Kavula', 'Estudo dos Trouxas', 'Magia');
+CALL MatricularAluno('Agrajag', '', 'Herbologia', 'Magia');
+CALL MatricularAluno('Hotblack', 'Desiato', 'Magia Avançada', 'Magia');
+CALL MatricularAluno('Veet', 'Voojagig', 'História dos Feiticeiros', 'Magia');
+CALL MatricularAluno('Lunkwill', '', 'Adivinhação', 'Magia');
+CALL MatricularAluno('Fook', '', 'Aritmancia', 'Magia');
+SELECT*FROM Alunos
