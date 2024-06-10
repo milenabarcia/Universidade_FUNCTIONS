@@ -25,4 +25,6 @@ Crie 200 registros diferentes de alunos;
 Crie 25 tipos de cursos de uma universidade.
 
 # Modelo Lógico
-(https://github.com/milenabarcia/Universidade_FUNCTIONS/blob/main/ppp.png?raw=true)
+![Screenshot of a comment on a GitHub issue showing an image, added in the Markdown, of an Octocat smiling and raising a tentacle.](https://github.com/milenabarcia/Universidade_FUNCTIONS/blob/main/ppp.png?raw=true)
+
+# Milena Mazzei Barcia RA: 237291
