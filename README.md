@@ -25,3 +25,4 @@ Crie 200 registros diferentes de alunos;
 Crie 25 tipos de cursos de uma universidade.
 
 # Modelo Lógico
+(https://github.com/milenabarcia/Universidade_FUNCTIONS/blob/main/ppp.png?raw=true)
